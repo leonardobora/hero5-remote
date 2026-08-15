@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import logging
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -32,10 +33,30 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_UDP_URL = f"udp://{DEFAULT_HOST}:8554"
+DEFAULT_UDP_HOST = DEFAULT_HOST
+DEFAULT_UDP_PORT = 8554
 DEFAULT_WIDTH = 1280
 DEFAULT_HEIGHT = 720
 DEFAULT_FPS = 30
+
+
+def _find_gopro_local_ip(host: str = DEFAULT_UDP_HOST) -> str:
+    """Find the local IP address used to reach the GoPro network (10.5.5.0/24)."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            # Connect to the GoPro host without sending data.
+            sock.connect((host, DEFAULT_UDP_PORT))
+            return sock.getsockname()[0]
+    except OSError as exc:
+        raise StreamingError(
+            f"Could not determine local IP for GoPro network. "
+            f"Make sure you are connected to the GoPro Wi-Fi."
+        ) from exc
+
+
+def _build_udp_url(host: str = DEFAULT_UDP_HOST, local_ip: str | None = None) -> str:
+    local_ip = local_ip or _find_gopro_local_ip(host)
+    return f"udp://{host}:{DEFAULT_UDP_PORT}?localaddr={local_ip}"
 
 
 class StreamingError(GoProError):
@@ -139,7 +160,7 @@ class StreamController:
         width: int = DEFAULT_WIDTH,
         height: int = DEFAULT_HEIGHT,
         fps: int = DEFAULT_FPS,
-        udp_url: str = DEFAULT_UDP_URL,
+        udp_url: str | None = None,
         on_frame: Callable | None = None,
     ) -> None:
         """Bridge the UDP stream to a Windows virtual camera via pyvirtualcam.
@@ -159,6 +180,10 @@ class StreamController:
             raise StreamingError(
                 "ffmpeg is required. Download it from https://ffmpeg.org/download.html"
             )
+
+        if udp_url is None:
+            udp_url = _build_udp_url(DEFAULT_UDP_HOST)
+            logger.info("Using UDP URL: %s", udp_url)
 
         frame_size = width * height * 3
         command = self._build_ffmpeg_command(width, height, fps, udp_url)

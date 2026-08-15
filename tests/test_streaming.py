@@ -5,7 +5,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from hero5_remote.commands import Mode, SubMode
-from hero5_remote.streaming import StreamController, StreamingError
+from hero5_remote.streaming import (
+    StreamController,
+    StreamingError,
+    _build_udp_url,
+    _find_gopro_local_ip,
+)
 
 
 @pytest.fixture
@@ -58,3 +63,17 @@ class TestVirtualCamera:
         with patch("hero5_remote.streaming.shutil.which", return_value=None):
             with pytest.raises(StreamingError):
                 controller.serve_virtual_camera()
+
+
+class TestUdpUrl:
+    def test_build_udp_url_uses_local_ip(self):
+        url = _build_udp_url("10.5.5.9", "10.5.5.100")
+        assert url == "udp://10.5.5.9:8554?localaddr=10.5.5.100"
+
+    def test_find_gopro_local_ip_raises_when_not_connected(self):
+        with patch("hero5_remote.streaming.socket.socket") as mock_socket_cls:
+            mock_sock = MagicMock()
+            mock_sock.connect.side_effect = OSError("Network unreachable")
+            mock_socket_cls.return_value.__enter__.return_value = mock_sock
+            with pytest.raises(StreamingError):
+                _find_gopro_local_ip("10.5.5.9")
