@@ -57,8 +57,9 @@ function Test-GoProSubnet {
 }
 
 # Gather interfaces with IPv4 addresses and default gateways.
-$adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' -and $_.InterfaceOperationalStatus -eq 'Up' }
-$ipConfigs = Get-NetIPConfiguration | Where-Object { $_.NetAdapter -in $adapters }
+$adapters = Get-NetAdapter | Where-Object { $_.Status -eq 'Up' }
+$adapterIndexes = $adapters | Select-Object -ExpandProperty InterfaceIndex
+$ipConfigs = Get-NetIPConfiguration | Where-Object { $_.NetAdapter.InterfaceIndex -in $adapterIndexes }
 
 $goproInterface = $null
 $internetInterface = $null
@@ -87,7 +88,12 @@ foreach ($cfg in $ipConfigs) {
 }
 
 if (-not $goproInterface) {
-    Write-Warn "No interface found in $GoProNetwork. Make sure you are connected to the GoPro Wi-Fi network."
+    Write-Warn "No interface found in $GoProNetwork."
+    Write-Info "Detected adapters:"
+    Get-NetIPConfiguration | Where-Object { $_.IPv4Address } | ForEach-Object {
+        Write-Info "  - $($_.NetAdapter.Name): $($_.IPv4Address.IPAddress), gateway=$($_.IPv4DefaultGateway.NextHop)"
+    }
+    Write-Warn "Make sure you are connected to the GoPro Wi-Fi network."
     exit 2
 }
 
