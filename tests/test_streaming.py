@@ -57,6 +57,8 @@ class TestVirtualCamera:
         assert cmd[0] == "/usr/bin/ffmpeg"
         assert "udp://10.5.5.9:8554" in cmd
         assert "-an" in cmd
+        assert "-fflags" in cmd
+        assert "-flags" in cmd
         assert any("scale=1280:720" in str(part) for part in cmd)
 
     def test_serve_virtual_camera_requires_ffmpeg(self, controller):
