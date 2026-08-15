@@ -60,6 +60,7 @@ class TestVirtualCamera:
         assert "-fflags" in cmd
         assert "-flags" in cmd
         assert any("scale=1280:720" in str(part) for part in cmd)
+        assert any("discardcorrupt" in str(part) for part in cmd)
 
     def test_serve_virtual_camera_requires_ffmpeg(self, controller):
         with patch("hero5_remote.streaming.shutil.which", return_value=None):
@@ -70,7 +71,9 @@ class TestVirtualCamera:
 class TestUdpUrl:
     def test_build_udp_url_uses_local_ip(self):
         url = _build_udp_url("10.5.5.9", "10.5.5.100")
-        assert url == "udp://10.5.5.9:8554?localaddr=10.5.5.100"
+        assert url.startswith("udp://10.5.5.9:8554")
+        assert "localaddr=10.5.5.100" in url
+        assert "overrun_nonfatal=1" in url
 
     def test_find_gopro_local_ip_raises_when_not_connected(self):
         with patch("hero5_remote.streaming.socket.socket") as mock_socket_cls:

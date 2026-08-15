@@ -35,8 +35,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_UDP_HOST = DEFAULT_HOST
 DEFAULT_UDP_PORT = 8554
-DEFAULT_WIDTH = 1280
-DEFAULT_HEIGHT = 720
+DEFAULT_WIDTH = 640
+DEFAULT_HEIGHT = 480
 DEFAULT_FPS = 30
 
 
@@ -56,7 +56,13 @@ def _find_gopro_local_ip(host: str = DEFAULT_UDP_HOST) -> str:
 
 def _build_udp_url(host: str = DEFAULT_UDP_HOST, local_ip: str | None = None) -> str:
     local_ip = local_ip or _find_gopro_local_ip(host)
-    return f"udp://{host}:{DEFAULT_UDP_PORT}?localaddr={local_ip}"
+    # overrun_nonfatal+fifo_size keep ffmpeg resilient to Wi-Fi jitter.
+    return (
+        f"udp://{host}:{DEFAULT_UDP_PORT}"
+        f"?localaddr={local_ip}"
+        f"&overrun_nonfatal=1"
+        f"&fifo_size=50000000"
+    )
 
 
 class StreamingError(GoProError):
@@ -132,7 +138,7 @@ class StreamController:
         return [
             ffmpeg,
             "-fflags",
-            "nobuffer",
+            "nobuffer+discardcorrupt",
             "-flags",
             "low_delay",
             "-i",
