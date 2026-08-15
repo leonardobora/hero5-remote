@@ -17,7 +17,7 @@ class Media:
 
         Endpoint: ``GET http://10.5.5.9:8080/gp/gpMediaList``
         """
-        return self.client.get("/gpMediaList", media=True).json()
+        return self.client.get("/gp/gpMediaList", media=True).json()
 
     def video_info(self, path: str) -> dict[str, Any]:
         """Return video metadata (duration, tags).

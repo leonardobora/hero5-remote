@@ -114,10 +114,15 @@ class StreamController:
             "nobuffer",
             "-flags",
             "low_delay",
+            "-probesize",
+            "8192",
+            "-analyzeduration",
+            "0",
             "-i",
             udp_url,
+            "-an",
             "-vf",
-            f"scale={width}:{height},format=pix_fmts=rgb24",
+            f"format=rgb24,scale={width}:{height}",
             "-f",
             "rawvideo",
             "-pix_fmt",
@@ -166,16 +171,20 @@ class StreamController:
             bufsize=frame_size * 2,
         )
 
-        # Log ffmpeg errors on a side thread.
-        def _log_stderr() -> None:
+        # Capture ffmpeg stderr so we can report the real error if it dies.
+        stderr_lines: list[str] = []
+
+        def _capture_stderr() -> None:
             if self._ffmpeg is None or self._ffmpeg.stderr is None:
                 return
             for line in iter(self._ffmpeg.stderr.readline, b""):
                 if not line:
                     break
-                logger.debug("ffmpeg: %s", line.decode("utf-8", errors="replace").rstrip())
+                text = line.decode("utf-8", errors="replace").rstrip()
+                stderr_lines.append(text)
+                logger.debug("ffmpeg: %s", text)
 
-        threading.Thread(target=_log_stderr, daemon=True).start()
+        threading.Thread(target=_capture_stderr, daemon=True).start()
 
         fmt = getattr(pyvirtualcam.PixelFormat, "RGB", None)
         if fmt is None:
@@ -184,8 +193,15 @@ class StreamController:
         with pyvirtualcam.Camera(width=width, height=height, fps=fps, fmt=fmt) as cam:
             logger.info("Virtual camera active: %s", cam.device)
             while not self._stop_event.is_set():
-                if self._ffmpeg is None or self._ffmpeg.poll() is not None:
-                    raise StreamingError("ffmpeg process ended unexpectedly")
+                if self._ffmpeg is None:
+                    raise StreamingError("ffmpeg process was terminated")
+
+                if self._ffmpeg.poll() is not None:
+                    tail = "\n".join(stderr_lines[-20:])
+                    raise StreamingError(
+                        f"ffmpeg exited with code {self._ffmpeg.returncode}.\n"
+                        f"Last stderr lines:\n{tail}"
+                    )
 
                 raw = self._ffmpeg.stdout.read(frame_size)
                 if len(raw) < frame_size:
