@@ -11,6 +11,7 @@ from .client import DEFAULT_HOST
 from .commands import FrameRate, FieldOfView, GoPro, Mode, SubMode, VideoResolution
 from .exceptions import GoProError
 from .media import Media
+from .streaming import StreamController, StreamingError
 
 
 def _add_camera_args(parser: argparse.ArgumentParser) -> None:
@@ -154,6 +155,51 @@ def cmd_media_delete_last(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_stream_start(args: argparse.Namespace) -> int:
+    controller = StreamController(_build_camera(args))
+    controller.start_camera_stream()
+    print("GoPro preview stream started. Feed available at udp://10.5.5.9:8554")
+    return 0
+
+
+def cmd_stream_stop(args: argparse.Namespace) -> int:
+    controller = StreamController(_build_camera(args))
+    controller.stop_camera_stream()
+    print("GoPro preview stream stopped.")
+    return 0
+
+
+def cmd_stream_bitrate(args: argparse.Namespace) -> int:
+    controller = StreamController(_build_camera(args))
+    controller.set_bitrate(args.bps)
+    print(f"Stream bitrate set to {args.bps} bps.")
+    return 0
+
+
+def cmd_stream_window(args: argparse.Namespace) -> int:
+    controller = StreamController(_build_camera(args))
+    controller.set_window_size(args.size_id)
+    print(f"Stream window size set to {args.size_id}.")
+    return 0
+
+
+def cmd_stream_virtual_camera(args: argparse.Namespace) -> int:
+    controller = StreamController(_build_camera(args))
+    controller.start_camera_stream()
+    print("Starting virtual camera bridge... Press Ctrl+C to stop.")
+    try:
+        controller.serve_virtual_camera(
+            width=args.width,
+            height=args.height,
+            fps=args.fps,
+        )
+    except KeyboardInterrupt:
+        controller.stop()
+        controller.stop_camera_stream()
+        print("\nVirtual camera stopped.")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="hero5-remote",
@@ -284,6 +330,46 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_camera_args(p_del_last)
     p_del_last.set_defaults(func=cmd_media_delete_last)
+
+    # stream
+    p_stream = sub.add_parser("stream", help="Live preview streaming")
+    stream_sub = p_stream.add_subparsers(dest="stream_command", required=True)
+
+    p_stream_start = stream_sub.add_parser(
+        "start", help="Start the GoPro UDP preview stream"
+    )
+    _add_camera_args(p_stream_start)
+    p_stream_start.set_defaults(func=cmd_stream_start)
+
+    p_stream_stop = stream_sub.add_parser(
+        "stop", help="Stop the GoPro UDP preview stream"
+    )
+    _add_camera_args(p_stream_stop)
+    p_stream_stop.set_defaults(func=cmd_stream_stop)
+
+    p_stream_bitrate = stream_sub.add_parser(
+        "bitrate", help="Set stream bitrate (setting 62)"
+    )
+    _add_camera_args(p_stream_bitrate)
+    p_stream_bitrate.add_argument("bps", type=int, help="Bitrate in bits per second")
+    p_stream_bitrate.set_defaults(func=cmd_stream_bitrate)
+
+    p_stream_window = stream_sub.add_parser(
+        "window", help="Set stream window size (setting 64)"
+    )
+    _add_camera_args(p_stream_window)
+    p_stream_window.add_argument("size_id", type=int, help="Window size ID")
+    p_stream_window.set_defaults(func=cmd_stream_window)
+
+    p_stream_cam = stream_sub.add_parser(
+        "virtual-camera",
+        help="Bridge the UDP stream to a virtual camera (Windows + OBS driver)",
+    )
+    _add_camera_args(p_stream_cam)
+    p_stream_cam.add_argument("--width", type=int, default=1280)
+    p_stream_cam.add_argument("--height", type=int, default=720)
+    p_stream_cam.add_argument("--fps", type=int, default=30)
+    p_stream_cam.set_defaults(func=cmd_stream_virtual_camera)
 
     return parser
 

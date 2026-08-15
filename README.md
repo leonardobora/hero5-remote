@@ -29,6 +29,30 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
+For streaming support (Windows virtual camera):
+
+```bash
+pip install -e ".[stream]"
+```
+
+On Windows you also need **OBS Studio** installed so its virtual camera driver is available for `pyvirtualcam`.
+
+## Windows dual-network setup
+
+If you want internet via Ethernet and GoPro via Wi-Fi at the same time, run the included PowerShell script as Administrator after connecting to the GoPro Wi-Fi:
+
+```powershell
+# Run PowerShell as Administrator, then:
+scripts\configure-windows-routing.ps1
+```
+
+This script:
+- Detects the GoPro Wi-Fi interface (IP in `10.5.5.0/24`).
+- Detects the internet interface (Ethernet or another Wi-Fi).
+- Sets metrics so the internet interface wins.
+- Adds a persistent route for `10.5.5.9/32` through the GoPro interface.
+- Removes the default gateway from the GoPro interface.
+
 ## Pairing
 
 1. Power on the GoPro.
@@ -115,17 +139,38 @@ hero5-remote/
 - Distinct exceptions for connection, timeout and HTTP response errors.
 - Verbose debug logging of every request and response.
 
-## Streaming backlog
+## Streaming to OBS / Zoom / Teams / Discord
 
-The Hero 5 Black can start a UDP preview stream with:
+The Hero 5 Black exposes a UDP H.264 preview stream. The CLI can bridge it to a Windows virtual camera.
 
 ```bash
-GET http://10.5.5.9/gp/gpControl/execute?p1=gpStream&a1=proto_v2&c1=restart
+# Start only the UDP preview feed
+hero5-remote stream start
+
+# Optional: tune bitrate and window size
+hero5-remote stream bitrate 1000000
+hero5-remote stream window 7
+
+# Bridge the UDP feed to a virtual camera
+hero5-remote stream virtual-camera
 ```
 
-Stream URL: `udp://10.5.5.9:8554`
+After `stream virtual-camera` starts, open OBS/Zoom/Teams/Discord and select the virtual camera device (usually "OBS Virtual Camera").
 
-To make this consumable by other apps you will likely need `ffmpeg` to bridge it to a virtual camera (e.g., `v4l2loopback` on Linux) or to an RTMP/WebRTC server. This is tracked as future work.
+Press `Ctrl+C` to stop.
+
+Requirements:
+- `ffmpeg` in PATH.
+- `pip install -e ".[stream]"`.
+- OBS Studio installed (provides the virtual camera driver on Windows).
+
+## Streaming backlog
+
+Future improvements tracked in [GitHub issues](https://github.com/leonardobora/hero5-remote/issues):
+
+- Cross-platform virtual camera support (Linux `v4l2loopback`, macOS).
+- RTMP/WebRTC local server option.
+- Lower-latency tuning and automatic reconnection.
 
 ## License
 

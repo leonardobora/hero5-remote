@@ -9,6 +9,7 @@ from .exceptions import (
     GoProTimeoutError,
 )
 from .media import Media
+from .streaming import StreamController, StreamingError
 
 __all__ = [
     "GoPro",
@@ -16,6 +17,8 @@ __all__ = [
     "Media",
     "Mode",
     "SubMode",
+    "StreamController",
+    "StreamingError",
     "GoProError",
     "GoProConnectionError",
     "GoProTimeoutError",
