@@ -102,7 +102,24 @@ if (-not $connected) {
     exit 4
 }
 
+# Complete pairing so the camera leaves the Connect screen.
+$pairUrl = "http://$GoProHost/gp/gpControl/command/wireless/pair/complete?success=1&deviceName=DESKTOP"
+Write-Info "Completing GoPro pairing via $pairUrl ..."
+try {
+    $response = Invoke-WebRequest -Uri $pairUrl -TimeoutSec 10 -UseBasicParsing -ErrorAction Stop
+    Write-Ok "Pairing response: $($response.StatusCode)"
+}
+catch {
+    Write-Warn "Pairing call failed: $_"
+    Write-Warn "You may need to retry or complete pairing manually via the GoPro app once."
+}
+
+Start-Sleep -Seconds 2
+
 # Now run the routing configuration.
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 $routingScript = Join-Path $scriptDir "configure-windows-routing.ps1"
 & $routingScript -GoProHost $GoProHost -InternetMetric $InternetMetric -GoProMetric $GoProMetric
+
+Write-Info "Press Enter to close this window."
+Read-Host

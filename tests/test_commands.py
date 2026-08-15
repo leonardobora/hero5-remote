@@ -56,6 +56,20 @@ class TestBasicControls:
         gopro.tag_moment()
         gopro.client.get.assert_called_once_with("/command/storage/tag_moment")
 
+    def test_pair(self, gopro):
+        gopro.pair()
+        gopro.client.get.assert_called_once_with(
+            "/command/wireless/pair/complete",
+            params={"success": 1, "deviceName": "DESKTOP"},
+        )
+
+    def test_pair_custom_name(self, gopro):
+        gopro.pair(device_name="PC-Leo")
+        gopro.client.get.assert_called_once_with(
+            "/command/wireless/pair/complete",
+            params={"success": 1, "deviceName": "PC-Leo"},
+        )
+
 
 class TestSettings:
     def test_set_video_resolution(self, gopro):

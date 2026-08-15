@@ -185,3 +185,14 @@ class GoPro:
     def wake(self, mac: str, *, broadcast: str = "10.5.5.255", port: int = 9) -> None:
         """Power on the camera using Wake-on-LAN."""
         self.client.wake_on_lan(mac, broadcast=broadcast, port=port)
+
+    def pair(self, device_name: str = "DESKTOP") -> None:
+        """Complete pairing with the camera after connecting to its Wi-Fi.
+
+        Endpoint documented for Hero 5 Black/Session:
+        /gp/gpControl/command/wireless/pair/complete?success=1&deviceName=...
+        """
+        self.client.get(
+            "/command/wireless/pair/complete",
+            params={"success": 1, "deviceName": device_name},
+        )

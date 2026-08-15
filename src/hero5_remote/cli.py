@@ -107,6 +107,13 @@ def cmd_wake(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_pair(args: argparse.Namespace) -> int:
+    camera = _build_camera(args)
+    camera.pair(device_name=args.device_name)
+    print("Pairing completed.")
+    return 0
+
+
 def cmd_locate(args: argparse.Namespace) -> int:
     camera = _build_camera(args)
     camera.locate(on=args.on)
@@ -277,6 +284,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_camera_args(p_wake)
     p_wake.set_defaults(func=cmd_wake)
+
+    # pair
+    p_pair = sub.add_parser("pair", help="Complete GoPro pairing")
+    _add_camera_args(p_pair)
+    p_pair.add_argument(
+        "--device-name",
+        default="DESKTOP",
+        help="Device name to report to the camera (default: DESKTOP)",
+    )
+    p_pair.set_defaults(func=cmd_pair)
 
     # locate
     p_loc = sub.add_parser("locate", help="Enable or disable locate beep")
