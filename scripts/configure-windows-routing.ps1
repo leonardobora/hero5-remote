@@ -126,11 +126,23 @@ if ($goproGw) {
 }
 
 # Add persistent route for the GoPro host through the GoPro interface.
+# Note: the subnet route 10.5.5.0/24 already covers 10.5.5.9, so this /32
+# route is only extra precision. If adding it fails, we keep going.
 $existingRoute = Get-NetRoute -DestinationPrefix "$GoProHost/32" -ErrorAction SilentlyContinue
 if (-not $existingRoute) {
     if ($PSCmdlet.ShouldProcess("$GoProHost/32", "Add persistent route via interface $($goproInterface.InterfaceIndex)")) {
-        New-NetRoute -DestinationPrefix "$GoProHost/32" -InterfaceIndex $goproInterface.InterfaceIndex -PolicyStore PersistentStore -ErrorAction Stop | Out-Null
-        Write-Ok "Added persistent route $GoProHost/32 through GoPro Wi-Fi interface."
+        try {
+            New-NetRoute `
+                -DestinationPrefix "$GoProHost/32" `
+                -InterfaceIndex $goproInterface.InterfaceIndex `
+                -PolicyStore PersistentStore `
+                -ErrorAction Stop | Out-Null
+            Write-Ok "Added persistent route $GoProHost/32 through GoPro Wi-Fi interface."
+        }
+        catch {
+            Write-Warn "Could not add persistent /32 route: $_"
+            Write-Info "The subnet route 10.5.5.0/24 already handles reachability to $GoProHost."
+        }
     }
 }
 else {
